@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bússola Eleitoral 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #F2F0E7; }
+  * { box-sizing: border-box; }
+  .bussola-btn { transition: all .15s ease; }
+  .bussola-btn:hover { transform: translateY(-1px); }
+  .bussola-btn:active { transform: translateY(0); }
+  .likert-dot:focus-visible, .peso-pill:focus-visible, .nav-btn:focus-visible {
+    outline: 2px solid #16233D; outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bussola-btn { transition: none !important; }
+    .bussola-btn:hover { transform: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect } = React;
+
+// ---- Configuração do Supabase ----------------------------------------------
+// Preencha com os dados do SEU projeto (Settings → API no painel do Supabase).
+// A anon key é pública por design — a segurança vem das políticas RLS no banco.
+const SUPABASE_URL = "https://fqodqsnirtmvvutjlehk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxb2Rxc25pcnRtdnZ1dGpsZWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MzI0MzUsImV4cCI6MjEwNDAwODQzNX0._fTOY80F4lBmx139doZ2ePDGP2-7a-Whf4d0eZUAmqM";
+
+// ---- Data -----------------------------------------------------------------
+
+const AXES = [
+  { id: "eco", label: "Economia",
+    statement: "O Estado deveria ter um papel mais ativo na economia — regulando setores estratégicos e mantendo empresas públicas — mesmo que isso signifique mais impostos." },
+  { id: "seg", label: "Segurança pública",
+    statement: "A posse de armas por civis deveria ser facilitada e as leis penais deveriam ser mais rígidas, com penas mais longas." },
+  { id: "social", label: "Costumes",
+    statement: "Pautas como aborto, drogas e casamento igualitário devem ser decididas priorizando valores tradicionais e religiosos." },
+  { id: "meioamb", label: "Meio ambiente",
+    statement: "A preservação ambiental e o combate ao desmatamento devem ter prioridade sobre a expansão do agronegócio." },
+  { id: "inst", label: "Instituições",
+    statement: "O STF e o TSE atuaram corretamente nas últimas eleições e suas decisões devem ser respeitadas sem contestação pública." },
+  { id: "estadosocial", label: "Estado social",
+    statement: "Programas de transferência de renda e políticas de cotas raciais/sociais devem ser mantidos e ampliados." },
+  { id: "estilo", label: "Estilo de governo",
+    statement: "Prefiro um discurso combativo e de ruptura com o sistema político a um estilo institucional e conciliador." },
+];
+
+// scores per axis, same order as AXES: [eco, seg, social, meioamb, inst, estadosocial, estilo]
+// 1 = discorda totalmente da afirmação, 5 = concorda totalmente
+// Estimativas gerais a partir de posicionamento público conhecido — ver aviso na tela de resultado.
+const CANDIDATOS = [
+  { numero: 13, nome: "Luiz Inácio Lula da Silva", partido: "PT", scores: [5, 1, 1, 4, 5, 5, 1] },
+  { numero: 22, nome: "Flávio Bolsonaro", partido: "PL", scores: [2, 5, 5, 1, 1, 2, 5] },
+  { numero: 44, nome: "Ronaldo Caiado", partido: "União Brasil", scores: [3, 4, 3, 2, 4, 2, 3] },
+  { numero: 30, nome: "Romeu Zema", partido: "Novo", scores: [1, 3, 3, 2, 4, 1, 2] },
+  { numero: 70, nome: "Augusto Cury", partido: "Avante", scores: [3, 3, 3, 3, 4, 3, 2] },
+  { numero: 27, nome: "Clariana Barão", partido: "DC", scores: [3, 4, 5, 2, 3, 2, 2] },
+  { numero: 22, nome: "Pablo Marçal", partido: "PRTB", scores: [2, 5, 4, 1, 1, 2, 5] },
+  { numero: 29, nome: "Rui Costa Pimenta", partido: "PCO", scores: [5, 1, 1, 4, 2, 5, 5] },
+  { numero: 80, nome: "Samara Martins", partido: "UP", scores: [5, 1, 1, 5, 2, 5, 4] },
+];
+
+const PESO_LABEL = { 1: "Pouco importante", 2: "Importante", 3: "Muito importante" };
+
+function BussolaEleitoral() {
+  const [stage, setStage] = useState("intro");
+  const [step, setStep] = useState(0);
+  const [respostas, setRespostas] = useState(Array(AXES.length).fill(null));
+  const [pesos, setPesos] = useState(Array(AXES.length).fill(2));
+
+  const axis = AXES[step];
+  const podeAvancar = respostas[step] !== null;
+
+  function setResposta(v) {
+    const next = [...respostas];
+    next[step] = v;
+    setRespostas(next);
+  }
+  function setPeso(v) {
+    const next = [...pesos];
+    next[step] = v;
+    setPesos(next);
+  }
+  function avancar() {
+    if (step < AXES.length - 1) setStep(step + 1);
+    else setStage("results");
+  }
+  function voltar() {
+    if (step > 0) setStep(step - 1);
+    else setStage("intro");
+  }
+  function reiniciar() {
+    setRespostas(Array(AXES.length).fill(null));
+    setPesos(Array(AXES.length).fill(2));
+    setStep(0);
+    setStage("intro");
+  }
+
+  const [stats, setStats] = useState(null); // { total, porCandidato: [...] }
+  const [statsStatus, setStatsStatus] = useState("idle"); // idle | loading | ready | error | unconfigured
+
+  const resultados = useMemo(() => {
+    if (stage !== "results") return [];
+    const maxDist = pesos.reduce((s, p) => s + p * 4, 0);
+    return CANDIDATOS.map((c) => {
+      const dist = c.scores.reduce((s, score, i) => s + pesos[i] * Math.abs(score - respostas[i]), 0);
+      const alinhamento = Math.round(100 * (1 - dist / maxDist));
+      return { ...c, alinhamento };
+    }).sort((a, b) => b.alinhamento - a.alinhamento);
+  }, [stage, respostas, pesos]);
+
+  useEffect(() => {
+    if (stage !== "results" || resultados.length === 0) return;
+    if (!SUPABASE_URL.startsWith("http")) {
+      setStatsStatus("unconfigured");
+      return;
+    }
+
+    let cancelado = false;
+    async function enviarEBuscar() {
+      setStatsStatus("loading");
+      const vencedor = resultados[0];
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/respostas_bussola`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            respostas,
+            pesos,
+            vencedor_numero: vencedor.numero,
+            vencedor_nome: vencedor.nome,
+            vencedor_alinhamento: vencedor.alinhamento,
+          }),
+        });
+      } catch (e) {
+        // Falha ao gravar não deve travar a exibição do resultado do usuário.
+      }
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/estatisticas_bussola`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const linhas = await res.json();
+        if (!cancelado && Array.isArray(linhas)) {
+          const total = linhas.length > 0 ? Number(linhas[0].total) : 0;
+          setStats({ total, porCandidato: linhas });
+          setStatsStatus("ready");
+        }
+      } catch (e) {
+        if (!cancelado) setStatsStatus("error");
+      }
+    }
+    enviarEBuscar();
+    return () => { cancelado = true; };
+  }, [stage]);
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.masthead}>
+        <div style={styles.mastheadRule} />
+        <div style={styles.mastheadRow}>
+          <span>ELEIÇÕES 2026 · BRASIL</span>
+          <span>Nº 04.10.26</span>
+        </div>
+        <h1 style={styles.title}>Bússola Eleitoral</h1>
+        <div style={styles.mastheadRule} />
+      </div>
+
+      <div style={styles.container}>
+        {stage === "intro" && (
+          <div>
+            <p style={styles.lead}>
+              Sete afirmações, uma escala de 1 a 5. Ao final, você recebe um ranking
+              de alinhamento com os candidatos à Presidência, calculado por
+              proximidade ponderada — não por adivinhação.
+            </p>
+            <p style={styles.body}>
+              Para cada afirmação, você diz o quanto concorda e quanto aquele tema
+              pesa na sua decisão de voto. O cálculo pondera as duas coisas.
+            </p>
+            <button className="bussola-btn" style={styles.primaryBtn} onClick={() => setStage("quiz")}>
+              Começar →
+            </button>
+            <p style={styles.disclaimerSmall}>
+              As posições atribuídas aos candidatos são estimativas gerais baseadas
+              em discurso público, não uma pesquisa científica. Veja o aviso
+              completo na tela de resultado.
+            </p>
+          </div>
+        )}
+
+        {stage === "quiz" && (
+          <div>
+            <div style={styles.progressRow}>
+              <span style={styles.progressLabel}>QUESTÃO {step + 1} DE {AXES.length}</span>
+              <div style={styles.progressTrack}>
+                <div style={{ ...styles.progressFill, width: `${((step + 1) / AXES.length) * 100}%` }} />
+              </div>
+            </div>
+
+            <span style={styles.axisTag}>{axis.label}</span>
+            <p style={styles.statement}>{axis.statement}</p>
+
+            <div style={styles.likertRow}>
+              {[1, 2, 3, 4, 5].map((v) => (
+                <button
+                  key={v}
+                  className="bussola-btn likert-dot"
+                  onClick={() => setResposta(v)}
+                  style={{ ...styles.likertDot, ...(respostas[step] === v ? styles.likertDotActive : {}) }}
+                  aria-pressed={respostas[step] === v}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+            <div style={styles.likertLabels}>
+              <span>Discordo totalmente</span>
+              <span>Concordo totalmente</span>
+            </div>
+
+            <div style={styles.pesoBlock}>
+              <span style={styles.pesoLabel}>Peso desse tema para você:</span>
+              <div style={styles.pesoRow}>
+                {[1, 2, 3].map((v) => (
+                  <button
+                    key={v}
+                    className="bussola-btn peso-pill"
+                    onClick={() => setPeso(v)}
+                    style={{ ...styles.pesoPill, ...(pesos[step] === v ? styles.pesoPillActive : {}) }}
+                  >
+                    {PESO_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.navRow}>
+              <button className="bussola-btn nav-btn" style={styles.ghostBtn} onClick={voltar}>← Voltar</button>
+              <button
+                className="bussola-btn nav-btn"
+                style={{ ...styles.primaryBtn, opacity: podeAvancar ? 1 : 0.4, cursor: podeAvancar ? "pointer" : "not-allowed" }}
+                onClick={() => podeAvancar && avancar()}
+                disabled={!podeAvancar}
+              >
+                {step === AXES.length - 1 ? "Ver resultado" : "Próxima →"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {stage === "results" && (
+          <div>
+            <span style={styles.axisTag}>RESULTADO · APURAÇÃO SIMULADA</span>
+            <p style={styles.lead}>Seu alinhamento, do maior ao menor:</p>
+
+            <div style={styles.urnaCard}>
+              <div style={styles.urnaNumero}>{resultados[0].numero}</div>
+              <div>
+                <div style={styles.urnaNome}>{resultados[0].nome}</div>
+                <div style={styles.urnaPartido}>{resultados[0].partido}</div>
+              </div>
+              <div style={styles.urnaPct}>{resultados[0].alinhamento}%</div>
+            </div>
+
+            <div style={styles.rankList}>
+              {resultados.slice(1).map((c, i) => (
+                <div key={c.nome} style={styles.rankRow}>
+                  <span style={styles.rankPos}>{i + 2}</span>
+                  <span style={styles.rankNumero}>{c.numero}</span>
+                  <div style={styles.rankBarWrap}>
+                    <div style={styles.rankNome}>
+                      {c.nome} <span style={styles.rankPartido}>{c.partido}</span>
+                    </div>
+                    <div style={styles.rankBarTrack}>
+                      <div style={{ ...styles.rankBarFill, width: `${c.alinhamento}%` }} />
+                    </div>
+                  </div>
+                  <span style={styles.rankPct}>{c.alinhamento}%</span>
+                </div>
+              ))}
+            </div>
+
+            {statsStatus === "loading" && (
+              <p style={styles.statsLoading}>Consultando respostas de outras pessoas…</p>
+            )}
+
+            {statsStatus === "ready" && stats && (
+              <div style={styles.statsBox}>
+                <span style={styles.axisTag}>
+                  {stats.total} {stats.total === 1 ? "PESSOA JÁ RESPONDEU" : "PESSOAS JÁ RESPONDERAM"}
+                </span>
+                <div style={styles.rankList}>
+                  {stats.porCandidato.map((c) => (
+                    <div key={c.nome} style={styles.rankRow}>
+                      <span style={styles.rankNumero}>{c.numero}</span>
+                      <div style={styles.rankBarWrap}>
+                        <div style={styles.rankNome}>{c.nome}</div>
+                        <div style={styles.rankBarTrack}>
+                          <div style={{ ...styles.rankBarFill, width: `${c.percentual}%`, background: "#C9A227" }} />
+                        </div>
+                      </div>
+                      <span style={styles.rankPct}>{c.percentual}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {statsStatus === "unconfigured" && (
+              <p style={styles.statsLoading}>
+                (Estatísticas da comunidade ainda não configuradas — preencha SUPABASE_URL e SUPABASE_ANON_KEY no código.)
+              </p>
+            )}
+
+            <button className="bussola-btn" style={styles.ghostBtnWide} onClick={reiniciar}>↺ Refazer questionário</button>
+
+            <div style={styles.disclaimerBox}>
+              <strong>Sobre este resultado:</strong> as posições atribuídas a cada
+              candidato são estimativas gerais feitas a partir de discurso público
+              e histórico político até agosto de 2026 — não são posições oficiais,
+              não substituem o plano de governo registrado no TSE, e podem não
+              refletir nuances ou mudanças recentes. Alguns candidatos com
+              plataforma pouco divulgada foram deixados de fora. Use isso como
+              ponto de partida para pesquisar, não como veredito.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  page: { minHeight: "100vh", background: "#F2F0E7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16233D", padding: "0 0 48px" },
+  masthead: { padding: "28px 20px 8px", maxWidth: 640, margin: "0 auto" },
+  mastheadRule: { height: 2, background: "#16233D" },
+  mastheadRow: { display: "flex", justifyContent: "space-between", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.08em", color: "#6B6455", padding: "8px 0" },
+  title: { fontFamily: "'Source Serif 4', serif", fontWeight: 700, fontSize: 34, margin: "0 0 10px", letterSpacing: "-0.01em" },
+  container: { maxWidth: 640, margin: "0 auto", padding: "20px" },
+  lead: { fontSize: 17, lineHeight: 1.5, margin: "0 0 14px" },
+  body: { fontSize: 15, lineHeight: 1.6, color: "#3A4256", margin: "0 0 24px" },
+  disclaimerSmall: { fontSize: 12.5, color: "#6B6455", marginTop: 18, lineHeight: 1.5, borderLeft: "2px solid #C9A227", paddingLeft: 10 },
+  primaryBtn: { background: "#9B2C2C", color: "#F7F4EC", border: "none", borderRadius: 3, padding: "13px 22px", fontSize: 15, fontWeight: 600, fontFamily: "'IBM Plex Sans', sans-serif", cursor: "pointer" },
+  ghostBtn: { background: "transparent", color: "#16233D", border: "1.5px solid #16233D", borderRadius: 3, padding: "13px 20px", fontSize: 15, fontWeight: 600, cursor: "pointer" },
+  ghostBtnWide: { display: "block", width: "100%", background: "transparent", color: "#16233D", border: "1.5px solid #16233D", borderRadius: 3, padding: "13px 20px", fontSize: 15, fontWeight: 600, cursor: "pointer", marginTop: 22 },
+  progressRow: { marginBottom: 22 },
+  progressLabel: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.08em", color: "#6B6455" },
+  progressTrack: { height: 4, background: "#DEDACB", borderRadius: 2, marginTop: 6, overflow: "hidden" },
+  progressFill: { height: "100%", background: "#9B2C2C" },
+  axisTag: { display: "inline-block", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em", color: "#9B2C2C", border: "1px solid #9B2C2C", borderRadius: 20, padding: "3px 12px", marginBottom: 14 },
+  statement: { fontFamily: "'Source Serif 4', serif", fontSize: 22, lineHeight: 1.4, margin: "0 0 26px" },
+  likertRow: { display: "flex", gap: 10, justifyContent: "space-between" },
+  likertDot: { flex: 1, aspectRatio: "1", borderRadius: "50%", border: "1.5px solid #16233D", background: "transparent", color: "#16233D", fontFamily: "'IBM Plex Mono', monospace", fontSize: 16, fontWeight: 600, cursor: "pointer" },
+  likertDotActive: { background: "#16233D", color: "#F2F0E7" },
+  likertLabels: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B6455", marginTop: 8 },
+  pesoBlock: { marginTop: 30 },
+  pesoLabel: { fontSize: 13, color: "#6B6455", display: "block", marginBottom: 8 },
+  pesoRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+  pesoPill: { border: "1px solid #16233D", background: "transparent", color: "#16233D", borderRadius: 20, padding: "7px 14px", fontSize: 13, cursor: "pointer" },
+  pesoPillActive: { background: "#C9A227", borderColor: "#C9A227", color: "#16233D" },
+  navRow: { display: "flex", justifyContent: "space-between", marginTop: 34 },
+  urnaCard: { display: "flex", alignItems: "center", gap: 16, background: "#16233D", color: "#F2F0E7", borderRadius: 6, padding: "20px", marginBottom: 22 },
+  urnaNumero: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 34, fontWeight: 600, background: "#F2F0E7", color: "#16233D", borderRadius: 4, padding: "4px 12px" },
+  urnaNome: { fontFamily: "'Source Serif 4', serif", fontSize: 19, fontWeight: 600 },
+  urnaPartido: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, opacity: 0.75 },
+  urnaPct: { marginLeft: "auto", fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, fontWeight: 600, color: "#C9A227" },
+  rankList: { display: "flex", flexDirection: "column", gap: 14 },
+  rankRow: { display: "flex", alignItems: "center", gap: 10 },
+  rankPos: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#6B6455", width: 14 },
+  rankNumero: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 600, border: "1px solid #16233D", borderRadius: 3, padding: "2px 6px", minWidth: 28, textAlign: "center" },
+  rankBarWrap: { flex: 1 },
+  rankNome: { fontSize: 13.5, marginBottom: 4 },
+  rankPartido: { color: "#6B6455", fontSize: 12 },
+  rankBarTrack: { height: 6, background: "#DEDACB", borderRadius: 3, overflow: "hidden" },
+  rankBarFill: { height: "100%", background: "#9B2C2C" },
+  rankPct: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 600, width: 40, textAlign: "right" },
+  disclaimerBox: { marginTop: 26, fontSize: 12.5, lineHeight: 1.6, color: "#3A4256", background: "#E9E5D8", borderRadius: 4, padding: "14px 16px" },
+  statsBox: { marginTop: 30, paddingTop: 22, borderTop: "1px solid #DEDACB" },
+  statsLoading: { fontSize: 13, color: "#6B6455", marginTop: 24, fontStyle: "italic" },
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<BussolaEleitoral />);
+</script>
+</body>
+</html>
