@@ -8,8 +8,19 @@
 -- servidor.
 --
 -- Rode no SQL Editor do Supabase (Dashboard > SQL Editor > New query).
--- Rode BLOCO A e B so depois que a Edge Function estiver publicada e testada,
--- senao a pagina para de registrar respostas no intervalo.
+--
+-- A ORDEM IMPORTA:
+--   1. BLOCO A agora. Ele so adiciona colunas e nao muda permissao nenhuma,
+--      entao e seguro rodar com a pagina no ar. Tem que vir ANTES da funcao,
+--      porque a funcao grava ip_hash e consulta created_at — sem as colunas
+--      ela falha.
+--   2. Publique a Edge Function, configure os secrets e preencha
+--      TURNSTILE_SITE_KEY e ENVIO_URL no HTML.
+--   3. Responda o questionario uma vez e confirme que a contagem subiu.
+--   4. So entao BLOCO B. Ele e o que corta a escrita anonima; se rodar antes
+--      da funcao estar funcionando, a pagina para de registrar respostas —
+--      e em silencio, porque o envio ignora erro para nao travar a tela.
+--   5. BLOCO C confere o resultado.
 
 -- ---------------------------------------------------------------------------
 -- BLOCO A — colunas que a Edge Function usa
