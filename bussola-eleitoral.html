@@ -417,6 +417,33 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     }
     const [stats, setStats] = useState(null);
     const [statsStatus, setStatsStatus] = useState("idle");
+    const [totalRespostas, setTotalRespostas] = useState(null);
+    useEffect(() => {
+      if (stage !== "intro") return;
+      if (!SUPABASE_URL.startsWith("http")) return;
+      let cancelado = false;
+      (async () => {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/estatisticas_bussola`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({})
+          });
+          const linhas = await res.json();
+          if (!cancelado && Array.isArray(linhas)) {
+            setTotalRespostas(linhas.length > 0 ? Number(linhas[0].total) : 0);
+          }
+        } catch (e) {
+        }
+      })();
+      return () => {
+        cancelado = true;
+      };
+    }, [stage]);
     const resultados = useMemo(() => {
       if (stage !== "results") return [];
       const maxDist = pesos.reduce((s, p) => s + p * 4, 0);
@@ -480,7 +507,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         cancelado = true;
       };
     }, [stage]);
-    return /* @__PURE__ */ React.createElement("div", { style: styles.page }, /* @__PURE__ */ React.createElement("div", { style: styles.masthead }, /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule }), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRow }, /* @__PURE__ */ React.createElement("span", null, "ELEI\xC7\xD5ES 2026 \xB7 BRASIL"), /* @__PURE__ */ React.createElement("span", null, "N\xBA 04.10.26")), /* @__PURE__ */ React.createElement("h1", { style: styles.title }, "B\xFAssola Eleitoral"), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule })), /* @__PURE__ */ React.createElement("div", { style: styles.container }, stage === "intro" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: styles.lead }, "Sete afirma\xE7\xF5es, uma escala de 1 a 5. Ao final, voc\xEA recebe um ranking de alinhamento com os candidatos \xE0 Presid\xEAncia, calculado por proximidade ponderada \u2014 n\xE3o por adivinha\xE7\xE3o."), /* @__PURE__ */ React.createElement("p", { style: styles.body }, "Para cada afirma\xE7\xE3o, voc\xEA diz o quanto concorda e quanto aquele tema pesa na sua decis\xE3o de voto. O c\xE1lculo pondera as duas coisas."), /* @__PURE__ */ React.createElement("button", { className: "bussola-btn", style: styles.primaryBtn, onClick: () => setStage("quiz") }, "Come\xE7ar \u2192"), /* @__PURE__ */ React.createElement("p", { style: styles.disclaimerSmall }, "As posi\xE7\xF5es atribu\xEDdas aos candidatos s\xE3o estimativas gerais baseadas em discurso p\xFAblico, n\xE3o uma pesquisa cient\xEDfica. Veja o aviso completo na tela de resultado.")), stage === "quiz" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: styles.progressRow }, /* @__PURE__ */ React.createElement("span", { style: styles.progressLabel }, "QUEST\xC3O ", step + 1, " DE ", AXES.length), /* @__PURE__ */ React.createElement("div", { style: styles.progressTrack }, /* @__PURE__ */ React.createElement("div", { style: { ...styles.progressFill, width: `${(step + 1) / AXES.length * 100}%` } }))), /* @__PURE__ */ React.createElement("span", { style: styles.axisTag }, axis.label), /* @__PURE__ */ React.createElement("p", { style: styles.statement }, axis.statement), /* @__PURE__ */ React.createElement("div", { style: styles.likertRow }, [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: styles.page }, /* @__PURE__ */ React.createElement("div", { style: styles.masthead }, /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule }), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRow }, /* @__PURE__ */ React.createElement("span", null, "ELEI\xC7\xD5ES 2026 \xB7 BRASIL"), /* @__PURE__ */ React.createElement("span", null, "N\xBA 04.10.26")), /* @__PURE__ */ React.createElement("h1", { style: styles.title }, "B\xFAssola Eleitoral"), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule })), /* @__PURE__ */ React.createElement("div", { style: styles.container }, stage === "intro" && /* @__PURE__ */ React.createElement("div", null, totalRespostas !== null && /* @__PURE__ */ React.createElement("div", { style: styles.introCounter }, totalRespostas, " ", totalRespostas === 1 ? "pessoa já respondeu" : "pessoas já responderam"), /* @__PURE__ */ React.createElement("p", { style: styles.lead }, "Sete afirma\xE7\xF5es, uma escala de 1 a 5. Ao final, voc\xEA recebe um ranking de alinhamento com os candidatos \xE0 Presid\xEAncia, calculado por proximidade ponderada \u2014 n\xE3o por adivinha\xE7\xE3o."), /* @__PURE__ */ React.createElement("p", { style: styles.body }, "Para cada afirma\xE7\xE3o, voc\xEA diz o quanto concorda e quanto aquele tema pesa na sua decis\xE3o de voto. O c\xE1lculo pondera as duas coisas."), /* @__PURE__ */ React.createElement("button", { className: "bussola-btn", style: styles.primaryBtn, onClick: () => setStage("quiz") }, "Come\xE7ar \u2192"), /* @__PURE__ */ React.createElement("p", { style: styles.disclaimerSmall }, "As posi\xE7\xF5es atribu\xEDdas aos candidatos s\xE3o estimativas gerais baseadas em discurso p\xFAblico, n\xE3o uma pesquisa cient\xEDfica. Veja o aviso completo na tela de resultado.")), stage === "quiz" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: styles.progressRow }, /* @__PURE__ */ React.createElement("span", { style: styles.progressLabel }, "QUEST\xC3O ", step + 1, " DE ", AXES.length), /* @__PURE__ */ React.createElement("div", { style: styles.progressTrack }, /* @__PURE__ */ React.createElement("div", { style: { ...styles.progressFill, width: `${(step + 1) / AXES.length * 100}%` } }))), /* @__PURE__ */ React.createElement("span", { style: styles.axisTag }, axis.label), /* @__PURE__ */ React.createElement("p", { style: styles.statement }, axis.statement), /* @__PURE__ */ React.createElement("div", { style: styles.likertRow }, [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: v,
@@ -528,6 +555,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     progressTrack: { height: 4, background: "#DEDACB", borderRadius: 2, marginTop: 6, overflow: "hidden" },
     progressFill: { height: "100%", background: "#9B2C2C" },
     axisTag: { display: "inline-block", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em", color: "#9B2C2C", border: "1px solid #9B2C2C", borderRadius: 20, padding: "3px 12px", marginBottom: 14 },
+    introCounter: { display: "inline-block", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em", color: "#8A6D1F", background: "#F6F0DC", border: "1px solid #E0D3A3", borderRadius: 20, padding: "4px 12px", marginBottom: 16 },
     statement: { fontFamily: "'Source Serif 4', serif", fontSize: 22, lineHeight: 1.4, margin: "0 0 26px" },
     likertRow: { display: "flex", gap: 10, justifyContent: "space-between" },
     likertDot: { flex: 1, aspectRatio: "1", borderRadius: "50%", border: "1.5px solid #16233D", background: "transparent", color: "#16233D", fontFamily: "'IBM Plex Mono', monospace", fontSize: 16, fontWeight: 600, cursor: "pointer" },
