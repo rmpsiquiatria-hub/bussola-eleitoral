@@ -344,7 +344,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
 
   function partidoDe(c) {
-    const achado = CANDIDATOS.find((x) => x.nome === c.nome) || CANDIDATOS.find((x) => x.numero === Number(c.numero));
+    const achado = CANDIDATOS_1T.find((x) => x.nome === c.nome) || CANDIDATOS_1T.find((x) => x.numero === Number(c.numero));
     return achado ? achado.partido : "";
   }
   // Anti-bot. Com as duas chaves vazias nada muda: a pagina segue gravando
@@ -418,7 +418,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     const partes = nome.split(" ").filter((p) => p.length > 2);
     return (partes.slice(0, 2).map((p) => p[0]).join("") || nome[0] || "?").toUpperCase();
   }
-  var CANDIDATOS = [
+  var CANDIDATOS_1T = [
     { numero: 13, nome: "Luiz In\xE1cio Lula da Silva", partido: "PT", scores: [5, 1, 1, 4, 5, 5, 1], foto: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28ombros%29_denoise.jpg/500px-Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28ombros%29_denoise.jpg", site: "https://lula.com.br/" },
     { numero: 22, nome: "Fl\xE1vio Bolsonaro", partido: "PL", scores: [2, 5, 5, 1, 1, 2, 5], foto: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Foto_oficial_do_senador_Fl%C3%A1vio_Bolsonaro_%28v._AgSen%29_%283x4%29.jpg/500px-Foto_oficial_do_senador_Fl%C3%A1vio_Bolsonaro_%28v._AgSen%29_%283x4%29.jpg", site: "https://www.flaviobolsonaro.com.br/" },
     { numero: 55, nome: "Ronaldo Caiado", partido: "PSD", scores: [3, 4, 3, 2, 4, 2, 3], foto: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Foto_oficial_do_governador_de_Goi%C3%A1s%2C_Ronaldo_Caiado_em_2023_%28ombros%29.jpg/500px-Foto_oficial_do_governador_de_Goi%C3%A1s%2C_Ronaldo_Caiado_em_2023_%28ombros%29.jpg", site: "https://ronaldocaiado.com.br/" },
@@ -429,10 +429,25 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     { numero: 29, nome: "Rui Costa Pimenta", partido: "PCO", scores: [5, 1, 1, 4, 2, 5, 5], foto: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Rui_Costa_Pimenta_Close.jpg/500px-Rui_Costa_Pimenta_Close.jpg", site: "https://pco.org.br/" },
     { numero: 80, nome: "Samara Martins", partido: "UP", scores: [5, 1, 1, 5, 2, 5, 4], foto: "https://upload.wikimedia.org/wikipedia/commons/d/d9/Samara_Martins_UP.jpg", site: "https://www.instagram.com/samaramartinsup/" }
   ];
+
+  // Os dois que passaram ao 2o turno (25/10/2026): Lula (13) e Flavio Bolsonaro (22).
+  var CANDIDATOS = CANDIDATOS_1T.filter((c) => c.numero === 13 || c.numero === 22);
+
+  // Opcoes da pergunta sobre o voto no 1o turno. "Outro candidato" existe porque
+  // concorreram 13 candidatos e esta lista traz 9 — quem votou nos demais precisa
+  // de uma resposta honesta.
+  var OPCOES_1T = CANDIDATOS_1T.map((c) => ({ valor: String(c.numero), rotulo: c.nome, nota: c.partido + " · " + c.numero })).concat([
+    { valor: "outro", rotulo: "Outro candidato", nota: "" },
+    { valor: "branco", rotulo: "Votei em branco", nota: "" },
+    { valor: "nulo", rotulo: "Anulei o voto", nota: "" },
+    { valor: "nao_votei", rotulo: "Não votei", nota: "" }
+  ]);
+
   var PESO_LABEL = { 1: "Pouco importante", 2: "Importante", 3: "Muito importante" };
   function BussolaEleitoral() {
     const [stage, setStage] = useState("intro");
     const [step, setStep] = useState(0);
+    const [voto1T, setVoto1T] = useState("");
     const [respostas, setRespostas] = useState(Array(AXES.length).fill(null));
     const [pesos, setPesos] = useState(Array(AXES.length).fill(2));
     const axis = AXES[step];
@@ -459,6 +474,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       setRespostas(Array(AXES.length).fill(null));
       setPesos(Array(AXES.length).fill(2));
       setStep(0);
+      setVoto1T("");
       setStage("intro");
     }
     const [stats, setStats] = useState(null);
@@ -545,7 +561,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           pesos,
           vencedor_numero: vencedor.numero,
           vencedor_nome: vencedor.nome,
-          vencedor_alinhamento: vencedor.alinhamento
+          vencedor_alinhamento: vencedor.alinhamento,
+          voto_primeiro_turno: voto1T || null
         };
         if (podeEnviar()) {
           try {
@@ -596,7 +613,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         cancelado = true;
       };
     }, [stage]);
-    return /* @__PURE__ */ React.createElement("div", { style: styles.page }, /* @__PURE__ */ React.createElement("div", { style: styles.masthead }, /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule }), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRow }, /* @__PURE__ */ React.createElement("span", null, "ELEI\xC7\xD5ES 2026 \xB7 BRASIL"), /* @__PURE__ */ React.createElement("span", null, "N\xBA 04.10.26")), /* @__PURE__ */ React.createElement("h1", { style: styles.title }, "B\xFAssola Eleitoral"), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule })), /* @__PURE__ */ React.createElement("div", { style: styles.container }, /* @__PURE__ */ React.createElement("div", { ref: caixaBot, style: { display: TURNSTILE_SITE_KEY && stage === "intro" ? "block" : "none", order: 2, marginTop: 22 } }), stage === "intro" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: styles.heroTitle }, "Qual candidato à Presidência mais combina com você?"), /* @__PURE__ */ React.createElement("p", { style: styles.lead }, "Responda 7 perguntas sobre economia, segurança, costumes e instituições. No final, você vê seu ranking de alinhamento com os 9 candidatos — calculado por proximidade ponderada, não por adivinhação."), /* @__PURE__ */ React.createElement("div", null, [["1", "Você diz o quanto concorda com cada afirmação, de 1 a 5."], ["2", "E o quanto aquele tema pesa na sua decisão de voto."], ["3", "O cálculo combina as duas coisas e monta seu ranking."]].map(([n, txt]) => /* @__PURE__ */ React.createElement("div", { key: n, style: styles.passoRow }, /* @__PURE__ */ React.createElement("span", { style: styles.passoNum }, n), /* @__PURE__ */ React.createElement("span", { style: styles.passoTxt }, txt)))), /* @__PURE__ */ React.createElement("p", { style: styles.metaLinha }, "Leva cerca de 2 minutos · não pede login nem seus dados"), /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoBox }, /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoNum }, ELEITORADO_TSE.toLocaleString("pt-BR")), /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoLabel }, "eleitores aptos a votar no Brasil — TSE, 1º turno de 4/10/2026")), totalRespostas !== null && /* @__PURE__ */ React.createElement("div", { style: styles.introCounter }, totalRespostas, " ", totalRespostas === 1 ? "pessoa já respondeu" : "pessoas já responderam"), /* @__PURE__ */ React.createElement("p", { style: styles.disclaimerSmall }, "As posições atribuídas aos candidatos são estimativas gerais baseadas em discurso público, não uma pesquisa científica. Veja o aviso completo na tela de resultado."), /* @__PURE__ */ React.createElement("button", { className: "bussola-btn", style: TURNSTILE_SITE_KEY && !tokenBot ? { ...styles.primaryBtn, opacity: 0.45, cursor: "not-allowed" } : styles.primaryBtn, disabled: !!(TURNSTILE_SITE_KEY && !tokenBot), onClick: () => { inicioQuiz = Date.now(); setStage("quiz"); } }, "Descobrir meu candidato →")), stage === "quiz" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: styles.progressRow }, /* @__PURE__ */ React.createElement("span", { style: styles.progressLabel }, "QUEST\xC3O ", step + 1, " DE ", AXES.length), /* @__PURE__ */ React.createElement("div", { style: styles.progressTrack }, /* @__PURE__ */ React.createElement("div", { style: { ...styles.progressFill, width: `${(step + 1) / AXES.length * 100}%` } }))), /* @__PURE__ */ React.createElement("span", { style: styles.axisTag }, axis.label), /* @__PURE__ */ React.createElement("p", { style: styles.statement }, axis.statement), /* @__PURE__ */ React.createElement("div", { style: styles.likertRow }, [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: styles.page }, /* @__PURE__ */ React.createElement("div", { style: styles.masthead }, /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule }), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRow }, /* @__PURE__ */ React.createElement("span", null, "ELEI\xC7\xD5ES 2026 \xB7 2\xBA TURNO"), /* @__PURE__ */ React.createElement("span", null, "N\xBA 25.10.26")), /* @__PURE__ */ React.createElement("h1", { style: styles.title }, "B\xFAssola Eleitoral"), /* @__PURE__ */ React.createElement("div", { style: styles.mastheadRule })), /* @__PURE__ */ React.createElement("div", { style: styles.container }, /* @__PURE__ */ React.createElement("div", { ref: caixaBot, style: { display: TURNSTILE_SITE_KEY && stage === "intro" ? "block" : "none", order: 2, marginTop: 22 } }), stage === "intro" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: styles.heroTitle }, "Lula ou Flávio Bolsonaro: quem combina mais com você?"), /* @__PURE__ */ React.createElement("p", { style: styles.lead }, "Responda 7 perguntas sobre economia, segurança, costumes e instituições. No final, você vê seu alinhamento com os dois candidatos do 2º turno — calculado por proximidade ponderada, não por adivinhação."), /* @__PURE__ */ React.createElement("div", null, [["1", "Você diz o quanto concorda com cada afirmação, de 1 a 5."], ["2", "E o quanto aquele tema pesa na sua decisão de voto."], ["3", "O cálculo combina as duas coisas e monta seu ranking."]].map(([n, txt]) => /* @__PURE__ */ React.createElement("div", { key: n, style: styles.passoRow }, /* @__PURE__ */ React.createElement("span", { style: styles.passoNum }, n), /* @__PURE__ */ React.createElement("span", { style: styles.passoTxt }, txt)))), /* @__PURE__ */ React.createElement("p", { style: styles.metaLinha }, "Leva cerca de 2 minutos · não pede login nem seus dados"), /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoBox }, /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoNum }, ELEITORADO_TSE.toLocaleString("pt-BR")), /* @__PURE__ */ React.createElement("div", { style: styles.eleitoradoLabel }, "eleitores aptos a votar no Brasil — TSE, 2º turno de 25/10/2026")), totalRespostas !== null && /* @__PURE__ */ React.createElement("div", { style: styles.introCounter }, totalRespostas, " ", totalRespostas === 1 ? "pessoa já respondeu" : "pessoas já responderam"), /* @__PURE__ */ React.createElement("p", { style: styles.disclaimerSmall }, "As posições atribuídas aos candidatos são estimativas gerais baseadas em discurso público, não uma pesquisa científica. Veja o aviso completo na tela de resultado."), /* @__PURE__ */ React.createElement("button", { className: "bussola-btn", style: TURNSTILE_SITE_KEY && !tokenBot ? { ...styles.primaryBtn, opacity: 0.45, cursor: "not-allowed" } : styles.primaryBtn, disabled: !!(TURNSTILE_SITE_KEY && !tokenBot), onClick: () => { inicioQuiz = Date.now(); setStage("voto1t"); } }, "Descobrir meu candidato →")), stage === "voto1t" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: styles.axisTag }, "ANTES DE COMEÇAR"), /* @__PURE__ */ React.createElement("p", { style: styles.statement }, "Em quem você votou no 1º turno?"), /* @__PURE__ */ React.createElement("p", { style: styles.body }, "Serve para entender o perfil de quem responde. Fica junto das outras respostas, sem identificar você."), /* @__PURE__ */ React.createElement("div", null, OPCOES_1T.map((o) => /* @__PURE__ */ React.createElement("button", { key: o.valor, className: "bussola-btn", style: styles.opcao1T, onClick: () => { setVoto1T(o.valor); setStage("quiz"); } }, /* @__PURE__ */ React.createElement("span", null, o.rotulo), o.nota ? /* @__PURE__ */ React.createElement("span", { style: styles.opcao1TNota }, o.nota) : null))), /* @__PURE__ */ React.createElement("button", { className: "bussola-btn", style: styles.ghostBtnWide, onClick: () => { setVoto1T("nao_respondeu"); setStage("quiz"); } }, "Prefiro não dizer")), stage === "quiz" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: styles.progressRow }, /* @__PURE__ */ React.createElement("span", { style: styles.progressLabel }, "QUEST\xC3O ", step + 1, " DE ", AXES.length), /* @__PURE__ */ React.createElement("div", { style: styles.progressTrack }, /* @__PURE__ */ React.createElement("div", { style: { ...styles.progressFill, width: `${(step + 1) / AXES.length * 100}%` } }))), /* @__PURE__ */ React.createElement("span", { style: styles.axisTag }, axis.label), /* @__PURE__ */ React.createElement("p", { style: styles.statement }, axis.statement), /* @__PURE__ */ React.createElement("div", { style: styles.likertRow }, [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: v,
@@ -644,6 +661,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     progressTrack: { height: 4, background: "#DEDACB", borderRadius: 2, marginTop: 6, overflow: "hidden" },
     progressFill: { height: "100%", background: "#9B2C2C" },
     axisTag: { display: "inline-block", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em", color: "#9B2C2C", border: "1px solid #9B2C2C", borderRadius: 20, padding: "3px 12px", marginBottom: 14 },
+    opcao1T: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left", background: "#FFFDF7", color: "#16233D", border: "1px solid #DEDACB", borderRadius: 4, padding: "12px 14px", fontSize: 15, fontFamily: "'IBM Plex Sans', sans-serif", cursor: "pointer", marginBottom: 7 },
+    opcao1TNota: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#8A8271", marginLeft: 12, whiteSpace: "nowrap" },
     heroTitle: { fontFamily: "'Source Serif 4', serif", fontSize: 30, lineHeight: 1.18, fontWeight: 700, margin: "0 0 14px" },
     passoRow: { display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 9 },
     passoNum: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, color: "#9B2C2C", border: "1px solid #9B2C2C", borderRadius: 20, minWidth: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 3 },

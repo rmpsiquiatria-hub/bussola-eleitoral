@@ -48,12 +48,23 @@ function recusa(mensagem: string, status: number, origem: string | null) {
 }
 
 // aceita so o que a bussola realmente manda; qualquer outra coisa e descartada
+// valores aceitos na pergunta sobre o voto no 1o turno: o numero de urna, ou
+// uma das situacoes previstas. Qualquer outra coisa e descartada.
+const VOTO_1T_PALAVRAS = ["outro", "branco", "nulo", "nao_votei", "nao_respondeu"];
+
+function voto1tValido(v: unknown) {
+  if (v === null || v === undefined) return true;
+  if (typeof v !== "string") return false;
+  return /^[0-9]{1,3}$/.test(v) || VOTO_1T_PALAVRAS.includes(v);
+}
+
 function payloadValido(c: unknown): c is {
   respostas: number[];
   pesos: number[];
   vencedor_numero: number;
   vencedor_nome: string;
   vencedor_alinhamento: number;
+  voto_primeiro_turno: string | null;
   token: string;
 } {
   if (typeof c !== "object" || c === null) return false;
@@ -73,6 +84,7 @@ function payloadValido(c: unknown): c is {
     (o.vencedor_alinhamento as number) < 0 ||
     (o.vencedor_alinhamento as number) > 100
   ) return false;
+  if (!voto1tValido(o.voto_primeiro_turno)) return false;
   if (typeof o.token !== "string" || o.token.length > 4096) return false;
 
   return true;
@@ -160,6 +172,7 @@ Deno.serve(async (req) => {
     vencedor_numero: corpo.vencedor_numero,
     vencedor_nome: corpo.vencedor_nome,
     vencedor_alinhamento: corpo.vencedor_alinhamento,
+    voto_primeiro_turno: corpo.voto_primeiro_turno ?? null,
     ip_hash,
   });
 
